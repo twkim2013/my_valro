@@ -3,59 +3,202 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>My Valro - Prototype</title>
+    <title>Third Person Strategy Game</title>
     <style>
-      html,body{height:100%;margin:0;background:#111;color:#ddd;font-family:Arial}
-      #canvas-container{width:100%;height:100%;display:block;position:relative}
-      #hud{position:absolute;left:10px;top:10px;z-index:10}
-      #hud div{margin:6px 0}
-      #weapon{font-weight:700}
-      #market{position:absolute;right:10px;bottom:10px;background:rgba(0,0,0,0.7);padding:12px;border-radius:6px;display:none}
-      #buyTimer{position:absolute;left:50%;transform:translateX(-50%);top:10px;background:rgba(0,0,0,0.6);padding:6px 10px;border-radius:6px}
-      #blocker{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#fff}
-      button{padding:8px 12px}
-      #crosshair{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:30px;height:30px;pointer-events:none;z-index:5;display:none}
-      .crosshair-line{position:absolute;background:#00ff00}
-      .crosshair-h{width:12px;height:2px;top:14px;left:9px}
-      .crosshair-v{width:2px;height:12px;left:14px;top:9px}
-      .crosshair-dot{width:4px;height:4px;background:#00ff00;border-radius:50%;left:13px;top:13px;position:absolute}
+      html, body {
+        height: 100%;
+        margin: 0;
+        background: #111;
+        color: #ddd;
+        font-family: Arial, sans-serif;
+        overflow: hidden;
+      }
+      #canvas-container {
+        width: 100%;
+        height: 100%;
+        display: block;
+        position: relative;
+      }
+      #hud {
+        position: absolute;
+        left: 10px;
+        top: 10px;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 15px;
+        border-radius: 8px;
+        font-size: 14px;
+      }
+      #hud div {
+        margin: 8px 0;
+      }
+      #hp-bar {
+        width: 200px;
+        height: 20px;
+        background: #333;
+        border: 2px solid #fff;
+        margin: 5px 0;
+        position: relative;
+      }
+      #hp-fill {
+        height: 100%;
+        width: 100%;
+        background: linear-gradient(90deg, #00ff00, #ffff00);
+        transition: width 0.1s;
+      }
+      #skills {
+        position: absolute;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 10px;
+        z-index: 15;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 15px;
+        border-radius: 8px;
+      }
+      .skill-box {
+        width: 60px;
+        height: 60px;
+        background: #333;
+        border: 2px solid #666;
+        border-radius: 5px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        color: #fff;
+      }
+      .skill-box.ready {
+        border-color: #00ff00;
+      }
+      .skill-box.cooldown {
+        border-color: #ff0000;
+      }
+      .skill-cooldown-text {
+        font-weight: bold;
+      }
+      .attack-indicator {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        font-size: 14px;
+        color: #0f0;
+      }
+      #deathUI {
+        position: absolute;
+        left: 50%;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: rgba(0, 0, 0, 0.9);
+        padding: 30px;
+        border-radius: 10px;
+        border: 3px solid #ff0000;
+        text-align: center;
+        display: none;
+        z-index: 100;
+        color: #ff0000;
+      }
+      #deathUI h1 {
+        margin: 0 0 15px 0;
+        font-size: 32px;
+      }
+      #deathUI p {
+        font-size: 18px;
+        margin: 10px 0;
+      }
+      #blocker {
+        position: absolute;
+        left: 0;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 50;
+      }
+      #blocker > div {
+        text-align: center;
+      }
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        background: #0088ff;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+      }
+      button:hover {
+        background: #0066cc;
+      }
+      .instructions {
+        font-size: 12px;
+        color: #aaa;
+        margin-top: 10px;
+        line-height: 1.5;
+      }
     </style>
   </head>
   <body>
     <div id="canvas-container"></div>
-    <div id="crosshair">
-      <div class="crosshair-line crosshair-h"></div>
-      <div class="crosshair-line crosshair-v"></div>
-      <div class="crosshair-dot"></div>
-    </div>
+
+    <!-- HUD -->
     <div id="hud">
-      <div id="health">HP: <span id="hp">100</span></div>
-      <div id="armor">Armor: <span id="armorVal">0</span></div>
-      <div id="money">Money: <span id="moneyVal">800</span></div>
-      <div id="weapon">Weapon: <span id="weaponName">Classic</span> (<span id="weaponSlot">1</span>)</div>
-      <div id="ammoDisplay">Ammo: <span id="ammo">10/20</span></div>
-      <div style="margin-top:12px;border-top:1px solid #555;padding-top:6px">
-        <div>Kills: <span id="kills">0</span></div>
-        <div>Damage: <span id="damage">0</span></div>
+      <div><strong>HP:</strong>
+        <div id="hp-bar">
+          <div id="hp-fill" style="width: 100%"></div>
+        </div>
+        <span id="hp-text">1500 / 1500</span>
       </div>
     </div>
-    <div id="buyTimer">Buy Phase: <span id="buyTime">40</span>s</div>
-    <div id="market">
-      <h4>Market (press B to toggle)</h4>
-      <div>Classic - 0</div>
-      <div>Shorty - 300</div>
-      <div>Spray - 400</div>
-      <div>Ghost - 500</div>
-      <div>Desert Eagle - 800</div>
+
+    <!-- Skills -->
+    <div id="skills">
+      <div class="skill-box ready">
+        <div>Q</div>
+        <div class="skill-cooldown-text" id="skill1-cd">0.0s</div>
+      </div>
+      <div class="skill-box ready">
+        <div>E</div>
+        <div class="skill-cooldown-text" id="skill2-cd">0.0s</div>
+      </div>
+      <div class="skill-box ready">
+        <div>R</div>
+        <div class="skill-cooldown-text" id="skill3-cd">0.0s</div>
+      </div>
     </div>
+
+    <!-- Attack indicator -->
+    <div class="attack-indicator">
+      Attack Ready: <span id="attack-ready" style="color: #0f0;">✓</span>
+    </div>
+
+    <!-- Death UI -->
+    <div id="deathUI">
+      <h1>YOU DIED</h1>
+      <p>Respawning in <span id="respawn-time">10</span> seconds...</p>
+    </div>
+
+    <!-- Start screen -->
     <div id="blocker">
       <div>
-        <div style="text-align:center;margin-bottom:12px">Click to lock pointer and start</div>
-        <div style="text-align:center;margin-bottom:8px"><button id="startBtn">Start</button></div>
-        <div style="text-align:center;font-size:12px;color:#aaa">
-          WASD: move | Shift: sprint | Ctrl: crouch<br/>
-          1-4: swap weapons | R: reload | Click: fire<br/>
-          B: market | Tab: scoreboard | Esc: menu
+        <h1>Third Person Strategy Game</h1>
+        <p style="margin-bottom: 20px;">Click to lock pointer</p>
+        <button id="startBtn">START GAME</button>
+        <div class="instructions">
+          <strong>Controls:</strong><br/>
+          WASD - Move | Left Click - Attack<br/>
+          Q - Skill 1 (100 dmg, 6s CD)<br/>
+          E - Skill 2 (Boost next attack, 4s CD)<br/>
+          R - Skill 3 (100 dmg for 5s, 10s CD)<br/>
+          <br/>
+          Defeat the dummy!
         </div>
       </div>
     </div>

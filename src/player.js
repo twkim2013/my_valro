@@ -1,170 +1,254 @@
 import * as THREE from 'https://unpkg.com/three@0.156.0/build/three.module.js';
-import { WeaponInstance } from './weapons.js';
 
 export default class Player {
-  constructor(camera, domElement, scene) {
-    this.camera = camera;
-    this.dom = domElement;
+  constructor(scene, camera) {
     this.scene = scene;
-    this.velocity = new THREE.Vector3();
-    this.direction = new THREE.Vector3();
-    this.speed = 4.0; // m/s
-    this.sprintMultiplier = 1.7;
-    this.crouchMultiplier = 0.5;
+    this.camera = camera;
+    
+    // Character stats
+    this.maxHP = 1500;
+    this.hp = 1500;
+    this.isDead = false;
+    this.respawnTimer = 0;
+    this.respawnTime = 10;
+
+    // Create player character mesh
+    this.body = new THREE.Group();
+    
+    // Main body
+    const bodyGeo = new THREE.CapsuleGeometry(0.3, 1.2, 8, 16);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0x4488ff });
+    this.mesh = new THREE.Mesh(bodyGeo, bodyMat);
+    this.body.add(this.mesh);
+
+    // Head
+    const headGeo = new THREE.SphereGeometry(0.25, 16, 16);
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xddaa88 });
+    this.head = new THREE.Mesh(headGeo, headMat);
+    this.head.position.y = 0.85;
+    this.body.add(this.head);
+
+    this.body.position.set(0, 1, 8);
+    this.scene.add(this.body);
+
+    // Third-person camera
+    this.cameraDistance = 5;
+    this.cameraHeight = 1.5;
     this.yaw = 0;
-    this.pitch = 0;
+    this.pitch = 0.3;
+
+    // Movement
+    this.move = { forward: false, back: false, left: false, right: false };
+    this.movementSpeed = 8;
+    this.lastMoveDir = new THREE.Vector3();
+
+    // Combat
+    this.lastAttackTime = 0;
+    this.attackCooldown = 1.0; // 1 attack per second
+
+    // Skill 1 - Airborne + damage
+    this.skill1Cooldown = 0;
+    this.skill1MaxCooldown = 6;
+
+    // Skill 2 - Next attack boosted
+    this.skill2Cooldown = 0;
+    this.skill2MaxCooldown = 4;
+    this.skill2NextAttackBoosted = false;
+
+    // Skill 3 - Damage boost for 5 seconds
+    this.skill3Cooldown = 0;
+    this.skill3MaxCooldown = 10;
+    this.skill3Active = false;
+    this.skill3Duration = 0;
+    this.skill3DurationMax = 5;
+
+    this.dummy = null;
     this.enabled = false;
 
-    this.move = { forward:false, back:false, left:false, right:false, sprint:false, crouch:false };
-    this.slot = 1;
-    this.weapons = { 1: new WeaponInstance(1), 2: new WeaponInstance(2), 3: new WeaponInstance(3), 4: new WeaponInstance(4) };
-    this.currentWeaponModel = null;
-    this.money = 800;
-    this.hp = 100;
-    this.armor = 0;
-    this.inBuy = true;
-    this.buyTime = 40;
-    this.raycaster = new THREE.Raycaster();
-    this.enemyManager = null;
-    this.kills = 0;
-    this.damageDealt = 0;
-
-    this._initPointerLock();
     this._bindKeys();
-    this._switchWeapon(1);
   }
 
-  _initPointerLock(){
-    const onClick = () => {
-      if(this.dom.requestPointerLock) this.dom.requestPointerLock();
-    };
-    document.addEventListener('pointerlockchange', ()=>{
-      this.enabled = document.pointerLockElement === this.dom;
-    });
-    document.addEventListener('mousemove', (e)=>{
-      if(!this.enabled) return;
-      const mx = e.movementX || 0;
-      const my = e.movementY || 0;
-      this.yaw -= mx * 0.002;
-      this.pitch -= my * 0.002;
-      this.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.pitch));
-      this.camera.rotation.set(this.pitch, this.yaw, 0);
-    });
-    // start button will call requestPointerLock
-  }
 
-  _bindKeys(){
-    window.addEventListener('keydown', (e)=>{
-      switch(e.code){
+  _bindKeys() {
+    window.addEventListener('keydown', (e) => {
+      switch (e.code) {
         case 'KeyW': this.move.forward = true; break;
         case 'KeyS': this.move.back = true; break;
         case 'KeyA': this.move.left = true; break;
         case 'KeyD': this.move.right = true; break;
-        case 'ShiftLeft': this.move.sprint = true; break;
-        case 'ControlLeft': this.move.crouch = true; break;
-        case 'Digit1': this._switchWeapon(1); break;
-        case 'Digit2': this._switchWeapon(2); break;
-        case 'Digit3': this._switchWeapon(3); break;
-        case 'Digit4': this._switchWeapon(4); break;
-        case 'KeyB': document.getElementById('market').style.display = document.getElementById('market').style.display === 'none' ? 'block' : 'none'; break;
-        case 'KeyR': this._reload(); break;
+        case 'KeyQ': if (!this.isDead) this._useSkill1(); break;
+        case 'KeyE': if (!this.isDead) this._useSkill2(); break;
+        case 'KeyR': if (!this.isDead) this._useSkill3(); break;
       }
     });
-    window.addEventListener('keyup', (e)=>{
-      switch(e.code){
+
+    window.addEventListener('keyup', (e) => {
+      switch (e.code) {
         case 'KeyW': this.move.forward = false; break;
         case 'KeyS': this.move.back = false; break;
         case 'KeyA': this.move.left = false; break;
         case 'KeyD': this.move.right = false; break;
-        case 'ShiftLeft': this.move.sprint = false; break;
-        case 'ControlLeft': this.move.crouch = false; break;
       }
     });
-    window.addEventListener('click', (e) => {
-      if(this.enabled) this._fire(performance.now());
+
+    window.addEventListener('mousedown', (e) => {
+      if (e.button === 0 && !this.isDead) { // Left click
+        this._normalAttack();
+      }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!this.enabled) return;
+      this.yaw -= e.movementX * 0.003;
+      this.pitch += e.movementY * 0.003;
+      this.pitch = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, this.pitch));
     });
   }
 
-  _switchWeapon(num){
-    this.slot = num;
-    if(this.currentWeaponModel) this.camera.remove(this.currentWeaponModel);
-    this.currentWeaponModel = this.weapons[num].model.clone();
-    this.camera.add(this.currentWeaponModel);
+  setCameraLocked(locked) {
+    this.enabled = locked;
   }
 
-  _fire(now){
-    const weapon = this.weapons[this.slot];
-    if(weapon.fire(now)){
-      const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-      this.raycaster.set(this.camera.position, direction);
+  setDummy(dummy) {
+    this.dummy = dummy;
+  }
 
-      // Raycasting for hit detection
-      if (this.enemyManager) {
-        const hitResult = this.enemyManager.raycastHit(this.raycaster);
-        if (hitResult) {
-          const damage = weapon.weaponDef.damage[hitResult.hitType] || weapon.weaponDef.damage.body;
-          const actualDamage = hitResult.enemy.takeDamage(damage, hitResult.hitType);
-          this.damageDealt += actualDamage;
-          
-          console.log(`Hit ${hitResult.hitType} for ${actualDamage.toFixed(1)} damage!`);
+  _normalAttack() {
+    const now = performance.now() / 1000;
+    if (now - this.lastAttackTime < this.attackCooldown) return;
 
-          if (hitResult.enemy.isDead) {
-            this.kills++;
-            this.money += 500; // kill reward
-          }
-        }
+    this.lastAttackTime = now;
+    let damage = 50;
+
+    // Apply skill 3 damage boost if active
+    if (this.skill3Active) {
+      damage = 100;
+    }
+
+    // Apply skill 2 boost if queued
+    if (this.skill2NextAttackBoosted) {
+      damage += 75;
+      this.skill2NextAttackBoosted = false;
+      // Push dummy back
+      if (this.dummy && !this.dummy.isDead) {
+        const dir = new THREE.Vector3().subVectors(this.dummy.body.position, this.body.position).normalize();
+        this.dummy.body.position.addScaledVector(dir, 2);
       }
-      
-      // Muzzle flash effect
-      if(this.currentWeaponModel){
-        const flash = new THREE.Mesh(
-          new THREE.SphereGeometry(0.15, 8, 8),
-          new THREE.MeshBasicMaterial({color:0xffaa00})
-        );
-        flash.position.set(0.3, -0.15, -0.6).applyQuaternion(this.camera.quaternion);
-        flash.position.add(this.camera.position);
-        this.scene.add(flash);
-        setTimeout(() => this.scene.remove(flash), 30);
+    }
+
+    if (this.dummy && !this.dummy.isDead) {
+      const dist = this.body.position.distanceTo(this.dummy.body.position);
+      if (dist < 3) {
+        this.dummy.takeDamage(damage);
       }
     }
   }
 
-  _reload(){
-    const weapon = this.weapons[this.slot];
-    weapon.reload(performance.now());
+  _useSkill1() {
+    if (this.skill1Cooldown > 0) return;
+    this.skill1Cooldown = this.skill1MaxCooldown;
+
+    // Airborne enemies around character and damage
+    if (this.dummy && !this.dummy.isDead) {
+      const dist = this.body.position.distanceTo(this.dummy.body.position);
+      if (dist < 8) {
+        this.dummy.takeDamage(100);
+        this.dummy.stun(0.5);
+      }
+    }
   }
 
-  update(dt){
-    // update buy phase timer
-    if(this.inBuy){
-      this.buyTime = Math.max(0, this.buyTime - dt);
-      if(this.buyTime === 0) this.inBuy = false;
+  _useSkill2() {
+    if (this.skill2Cooldown > 0) return;
+    this.skill2Cooldown = this.skill2MaxCooldown;
+    this.skill2NextAttackBoosted = true;
+  }
+
+  _useSkill3() {
+    if (this.skill3Cooldown > 0) return;
+    this.skill3Cooldown = this.skill3MaxCooldown;
+    this.skill3Active = true;
+    this.skill3Duration = this.skill3DurationMax;
+  }
+
+  takeDamage(amount) {
+    if (this.isDead) return;
+    this.hp -= amount;
+    if (this.hp < 0) this.hp = 0;
+
+    if (this.hp <= 0) {
+      this.isDead = true;
+      this.respawnTimer = 0;
+    }
+  }
+
+  respawn() {
+    this.isDead = false;
+    this.hp = this.maxHP;
+    this.body.position.set(0, 1, 8);
+    this.skill1Cooldown = 0;
+    this.skill2Cooldown = 0;
+    this.skill3Cooldown = 0;
+    this.skill3Active = false;
+    this.skill2NextAttackBoosted = false;
+  }
+
+  update(dt) {
+    // Update skill cooldowns
+    if (this.skill1Cooldown > 0) this.skill1Cooldown -= dt;
+    if (this.skill2Cooldown > 0) this.skill2Cooldown -= dt;
+    if (this.skill3Cooldown > 0) this.skill3Cooldown -= dt;
+
+    // Update skill 3 duration
+    if (this.skill3Active) {
+      this.skill3Duration -= dt;
+      if (this.skill3Duration <= 0) {
+        this.skill3Active = false;
+      }
     }
 
-    // movement
-    this.direction.set(0,0,0);
-    if(this.move.forward) this.direction.z -= 1;
-    if(this.move.back) this.direction.z += 1;
-    if(this.move.left) this.direction.x -= 1;
-    if(this.move.right) this.direction.x += 1;
-    if(this.direction.lengthSq()>0) this.direction.normalize();
+    // Handle respawning
+    if (this.isDead) {
+      this.respawnTimer += dt;
+      if (this.respawnTimer >= this.respawnTime) {
+        this.respawn();
+      }
+      return;
+    }
 
-    let currentSpeed = this.speed;
-    if(this.move.sprint) currentSpeed *= this.sprintMultiplier;
-    if(this.move.crouch) currentSpeed *= this.crouchMultiplier;
+    // Movement
+    let moveDir = new THREE.Vector3();
+    if (this.move.forward) moveDir.z -= 1;
+    if (this.move.back) moveDir.z += 1;
+    if (this.move.left) moveDir.x -= 1;
+    if (this.move.right) moveDir.x += 1;
 
-    // apply rotation
-    const forward = new THREE.Vector3(0,0,-1).applyQuaternion(this.camera.quaternion);
-    const right = new THREE.Vector3(1,0,0).applyQuaternion(this.camera.quaternion);
-    forward.y = 0; right.y = 0; forward.normalize(); right.normalize();
-    this.velocity.set(0,0,0);
-    this.velocity.addScaledVector(forward, this.direction.z * currentSpeed);
-    this.velocity.addScaledVector(right, this.direction.x * currentSpeed);
+    if (moveDir.length() > 0) {
+      // Rotate movement based on camera yaw
+      const cameraYaw = this.yaw;
+      const cos = Math.cos(cameraYaw);
+      const sin = Math.sin(cameraYaw);
 
-    // apply to camera position
-    this.camera.position.addScaledVector(this.velocity, dt);
+      const rotated = new THREE.Vector3(
+        moveDir.x * cos - moveDir.z * sin,
+        0,
+        moveDir.x * sin + moveDir.z * cos
+      );
 
-    // simple ground clamp
-    if(this.camera.position.y < 1.6) this.camera.position.y = 1.6;
+      rotated.normalize();
+      this.body.position.addScaledVector(rotated, this.movementSpeed * dt);
+      // Rotate character to face movement direction
+      this.body.rotation.y = Math.atan2(rotated.x, -rotated.z);
+      this.lastMoveDir.copy(rotated);
+    }
+
+    // Update camera to orbit around character
+    const camDistance = this.cameraDistance;
+    const camHeight = this.cameraHeight;
+    this.camera.position.x = this.body.position.x - Math.sin(this.yaw) * camDistance * Math.cos(this.pitch);
+    this.camera.position.y = this.body.position.y + camHeight + Math.sin(this.pitch) * camDistance;
+    this.camera.position.z = this.body.position.z - Math.cos(this.yaw) * camDistance * Math.cos(this.pitch);
+    this.camera.lookAt(this.body.position.x, this.body.position.y + 0.5, this.body.position.z);
   }
 }
+

@@ -1,0 +1,49 @@
+objectives
+- web game in edge in pc
+- make trird person strategy game
+    - movement 
+        - w to move foward
+        - a to move left
+        - s to move back
+        - d to move right
+        - q to use skill 1
+            - press and click the dummy
+        - e to use skill 2
+            - press and click dummy
+        - r to use skill 3
+            - press and click dummy
+        - mb1 to use normal ataack
+        - normal attack left mouse click
+    - when the game start
+        - there is a dummy in front of you
+    - character
+    - show hp bar on the top of character and dummy
+        - a
+             - normal attack
+                - when you click with left mouse click
+                - give 50damage
+                - ataack speed = 1 attack in 1sec
+            - skill
+                - skill 1
+                    - air bone eneymy who was staying around a(character) and give 100 damage
+                    - cooltime = 6sec
+                - skill 2 
+                    - when it pressed next normal attack get stronger it push enemy a bit, give normal attack + 75
+                    - cooltime = 4sec
+                - skill 3 
+                    - normal attack damage becomes 100 for 5 sec
+                    - cooltime = 10sec
+            - hp = 1500
+        - if hp = 0
+            - make ui and say "you died. you will respawn in (respawn time) sec"
+                - when you die you can't move
+                    - you can't use skill
+                    - and respawn in 10sec
+                    - when you respawn you have full hp and you can move and use skill and no death ui on the screen
+    - dummy use same skill as "a" character
+        - dummy's hp = 1500
+        - dummy's damage = 50
+        - it can move 
+        - use q skill if the character is close
+        - use e skill if q skill is cooldown and chracter is close
+        - use r if the character is close to dummy for 3second and if it used dummy follow the character until r skill is finished

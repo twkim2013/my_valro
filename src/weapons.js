@@ -1,16 +1,25 @@
 import * as THREE from 'https://unpkg.com/three@0.156.0/build/three.module.js';
+import {
+  createClassicPistolModel,
+  createShortyModel,
+  createGhostModel,
+  createDesertEagleModel,
+  createSprayModel,
+  createKnifeModel,
+  createBombModel,
+} from './models.js';
 
 export const WEAPONS = {
   1: {
     name: 'Classic',
     cost: 0,
     damage: { head: 75, body: 30, leg: 20 },
-    ammoPerMag: 10,
-    maxAmmo: 30,
-    fireRate: 0.1, // seconds
+    ammoPerMag: 12,
+    maxAmmo: 36,
+    fireRate: 0.1,
     accuracy: 0.95,
     recoil: 0.02,
-    model: createClassicModel,
+    model: createClassicPistolModel,
   },
   2: {
     name: 'Shorty',
@@ -27,7 +36,7 @@ export const WEAPONS = {
     name: 'Knife',
     cost: 0,
     damage: { head: 50, body: 35, leg: 25 },
-    ammoPerMag: -1, // melee, unlimited
+    ammoPerMag: -1,
     maxAmmo: -1,
     fireRate: 0.5,
     accuracy: 1.0,
@@ -37,7 +46,7 @@ export const WEAPONS = {
   4: {
     name: 'Bomb',
     cost: 0,
-    damage: { head: 0, body: 0, leg: 0 }, // utility, no damage
+    damage: { head: 0, body: 0, leg: 0 },
     ammoPerMag: -1,
     maxAmmo: -1,
     fireRate: 1.0,
@@ -45,107 +54,40 @@ export const WEAPONS = {
     recoil: 0.0,
     model: createBombModel,
   },
+  5: {
+    name: 'Spray',
+    cost: 400,
+    damage: { head: 65, body: 28, leg: 18 },
+    ammoPerMag: 15,
+    maxAmmo: 60,
+    fireRate: 0.05,
+    accuracy: 0.75,
+    recoil: 0.03,
+    model: createSprayModel,
+  },
+  6: {
+    name: 'Ghost',
+    cost: 500,
+    damage: { head: 70, body: 32, leg: 22 },
+    ammoPerMag: 13,
+    maxAmmo: 39,
+    fireRate: 0.12,
+    accuracy: 0.92,
+    recoil: 0.018,
+    model: createGhostModel,
+  },
+  7: {
+    name: 'Desert Eagle',
+    cost: 800,
+    damage: { head: 95, body: 45, leg: 30 },
+    ammoPerMag: 7,
+    maxAmmo: 35,
+    fireRate: 0.3,
+    accuracy: 0.88,
+    recoil: 0.08,
+    model: createDesertEagleModel,
+  },
 };
-
-function createClassicModel() {
-  const group = new THREE.Group();
-  
-  const barrel = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.05, 0.3),
-    new THREE.MeshStandardMaterial({ color: 0x333333 })
-  );
-  barrel.position.set(0.1, 0, -0.2);
-  barrel.rotation.z = Math.PI / 2;
-  group.add(barrel);
-  
-  const grip = new THREE.Mesh(
-    new THREE.BoxGeometry(0.08, 0.12, 0.08),
-    new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-  );
-  grip.position.set(0.05, -0.05, -0.05);
-  group.add(grip);
-  
-  const slide = new THREE.Mesh(
-    new THREE.BoxGeometry(0.12, 0.06, 0.25),
-    new THREE.MeshStandardMaterial({ color: 0x666666 })
-  );
-  slide.position.set(0, 0, -0.1);
-  group.add(slide);
-  
-  group.position.set(0.3, -0.15, -0.5);
-  group.scale.set(0.8, 0.8, 0.8);
-  
-  return group;
-}
-
-function createShortyModel() {
-  const group = new THREE.Group();
-  
-  const barrel = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.08, 0.08, 0.15),
-    new THREE.MeshStandardMaterial({ color: 0x333333 })
-  );
-  barrel.position.set(0.1, 0, -0.1);
-  barrel.rotation.z = Math.PI / 2;
-  group.add(barrel);
-  
-  const stock = new THREE.Mesh(
-    new THREE.BoxGeometry(0.15, 0.08, 0.15),
-    new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
-  );
-  stock.position.set(0, -0.04, 0.04);
-  group.add(stock);
-  
-  group.position.set(0.35, -0.12, -0.45);
-  group.scale.set(0.9, 0.9, 0.9);
-  
-  return group;
-}
-
-function createKnifeModel() {
-  const group = new THREE.Group();
-  
-  const blade = new THREE.Mesh(
-    new THREE.BoxGeometry(0.04, 0.15, 0.02),
-    new THREE.MeshStandardMaterial({ color: 0xdddddd, metalness: 0.8, roughness: 0.2 })
-  );
-  blade.position.set(0, 0.08, 0);
-  group.add(blade);
-  
-  const handle = new THREE.Mesh(
-    new THREE.BoxGeometry(0.05, 0.08, 0.04),
-    new THREE.MeshStandardMaterial({ color: 0x8b4513 })
-  );
-  handle.position.set(0, -0.02, 0);
-  group.add(handle);
-  
-  group.position.set(0.25, -0.1, -0.3);
-  group.scale.set(1, 1, 1);
-  
-  return group;
-}
-
-function createBombModel() {
-  const group = new THREE.Group();
-  
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(0.15, 0.2, 0.12),
-    new THREE.MeshStandardMaterial({ color: 0xff0000 })
-  );
-  group.add(body);
-  
-  const screen = new THREE.Mesh(
-    new THREE.BoxGeometry(0.12, 0.05, 0.02),
-    new THREE.MeshStandardMaterial({ color: 0x00ff00 })
-  );
-  screen.position.set(0, 0.05, 0.07);
-  group.add(screen);
-  
-  group.position.set(0.4, -0.1, -0.5);
-  group.scale.set(0.7, 0.7, 0.7);
-  
-  return group;
-}
 
 export class WeaponInstance {
   constructor(slot) {
